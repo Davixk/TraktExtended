@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Trakt Extension",
+  "version": "5.28.2023",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "storage"
+  ],
+  "host_permissions": ["https://www.google.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://trakt.tv/movies/*", "https://trakt.tv/shows/*"],
+      "js": ["content.js"],
+      "run_at": "document_start"
+    }
+  ]
+}
