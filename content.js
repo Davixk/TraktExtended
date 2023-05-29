@@ -22,8 +22,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("OMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (OMDb)", data.budget);
       //if (data.revenue) appendAdditionalStatsElement("Box Office (OMDb)", data.revenue);
-      if (data.rottenTomatoesRating) insertRottenTomatoesScore("rottentomatoes.com/", data.rottenTomatoesScore);
-      if (data.metascore && data.metascore.trim()!="N/A") insertScore("metacritic.com/", data.metascore, "metacritic", "Metascore", "star");
+      if (data.rottenTomatoesRating) 
+        insertRottenTomatoesScore(makeRottenTomatoesLink(content.title), data.rottenTomatoesScore);
+      if (data.metascore && data.metascore.trim()!="N/A") 
+        insertScore(makeMetacriticLink(content.title), data.metascore, "metacritic", "Metascore", "star");
     })
     .catch(error => { console.error(error); });
 
@@ -42,8 +44,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function getTMDbData(movieName, releaseYear) {
   try {var tmdbApiKey = await getStoredKeys(['tmdbKey']);}
-  catch (error) {console.error("Couldn't retrieve TMDb API Key" + error);}
-  const searchResponse = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(movieName)}&year=${releaseYear}`);
+  catch (error) {
+    throw new Error("Couldn't retrieve TMDb API Key" + error);
+  }
+  const searchUrl=`https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(movieName)}&year=${releaseYear}`;
+  const searchResponse = await fetch(searchUrl);
   const searchData = await searchResponse.json();
   if (searchData.results && searchData.results.length > 0) {
     const movieId = searchData.results[0].id;
@@ -62,7 +67,9 @@ async function getTMDbData(movieName, releaseYear) {
 
 async function getOMDbData(movieName, releaseYear) {
   try {var omdbApiKey = await getStoredKeys(['omdbKey']);}
-  catch (error) {console.error("Couldn't retrieve OMDb API Key" + error);}
+  catch (error) {
+    throw new Error("Couldn't retrieve OMDb API Key" + error);
+  }
   const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(movieName)}&y=${releaseYear}&apikey=${omdbApiKey}`);
   const data = await response.json();
   console.log(data);
@@ -178,15 +185,23 @@ function insertMoneyInfo(budget,revenue) {
 };
 
 function appendAdditionalStatsElement(labelText, text){
+  let AdditionalStatsContainer = document.querySelector("ul.additional-stats");
+  let cleanLabelText = labelText.replace(" (TMDb)", "").replace(" (OMDb)", "").replace(" (Google)", "");
+  for(let i = 0; i < AdditionalStatsContainer.childNodes.length; i++) {
+    let child = AdditionalStatsContainer.childNodes[i];
+    if (child.querySelector("label") && child.querySelector("label").textContent.includes(cleanLabelText)) {
+      if (child.textContent.includes(text.trim())) {
+        console.log("Additional stats element already exists");
+        child.getElementsByTagName("label")[0].textContent = cleanLabelText;
+        return;
+      }
+    }
+  }
   let stat = document.createElement("li");
-
   let statLabel = document.createElement("label");
   statLabel.textContent = labelText;
   stat.appendChild(statLabel);
-
   stat.appendChild(document.createTextNode(text));
-
-  let AdditionalStatsContainer = document.querySelector("ul.additional-stats");
   AdditionalStatsContainer.insertBefore(stat, AdditionalStatsContainer.lastChild);
 };
 
@@ -198,7 +213,8 @@ function insertRottenTomatoesLink(link){
   LinkButtonElement.setAttribute("data-original-title", "");
   LinkButtonElement.textContent = "Rotten Tomatoes";
 
-  document.querySelector("ul.external>li").insertBefore(LinkButtonElement, document.querySelector("ul.external>li").firstChild);
+  document.querySelector("ul.external>li")
+    .insertBefore(LinkButtonElement, document.querySelector("ul.external>li").firstChild);
 };
 
 function insertRottenTomatoesScore(link, score){
@@ -235,6 +251,16 @@ function insertScore(link, score, className, labelText, iconClass) {
     RatingElement,
     document.querySelector("ul.ratings").firstChild
   );
+}
+
+function makeMetacriticLink(movieName, releaseYear=undefined) {
+  // Replace spaces with dashes, remove punctuation, and convert to lowercase
+  movieName = movieName.trim().replace(/ /g, '-').replace(/[^\w-]/g, '').toLowerCase();
+  return `https://www.metacritic.com/movie/${encodeURIComponent(movieName)}`;
+}
+
+function makeRottenTomatoesLink(movieName, releaseYear=undefined) {
+  return `https://www.rottentomatoes.com/m/${encodeURIComponent(movieName)}`;
 }
 
 function formatNumberToCurrency(number) {
