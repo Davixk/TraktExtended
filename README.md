@@ -9,6 +9,8 @@ Trakt Extended is a powerful and easy-to-use Chrome extension designed to enhanc
 * Provides direct links to Rotten Tomatoes for a more detailed look into ratings.
 * All the data fetched is presented on the movie/show's page on Trakt.tv in an intuitive and user-friendly format.
 
+<image src="./res/screenshot1.jpg">
+
 ## Installation
 
 1. Clone or download the repository
