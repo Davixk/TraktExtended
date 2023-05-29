@@ -1,10 +1,6 @@
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.tabs.query({url: "*://*.trakt.tv/*"}, tabs => {
-    tabs.forEach(tab => {
-      console.log("Reloading recipe page at " + tab.url);
-      chrome.tabs.reload(tab.id);
-    });
-  });
+  
+  chrome.tabs.create({url: "res/options.html"});
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

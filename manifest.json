@@ -8,6 +8,7 @@
     "storage"
   ],
   "host_permissions": ["https://www.google.com/*"],
+  "options_page": "res/options.html",
   "background": {
     "service_worker": "background.js"
   },

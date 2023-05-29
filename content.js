@@ -11,19 +11,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (yearElement) {
         content.year = yearElement.textContent;
     } else {console.log("no year found");}
-    getTMDBData(content.title, content.year)
-    .then((data) => {
+    getTMDbData(content.title, content.year).then(data => {
       console.log("data: " + JSON.stringify(data));
-      if (data.budget) appendAdditionalStatsElement("Budget", data.budget);
-      if (data.revenue) appendAdditionalStatsElement("Revenue", data.revenue);
+      if (data.budget) appendAdditionalStatsElement("Budget (TMDb)", data.budget);
+      if (data.revenue) appendAdditionalStatsElement("Box Office (TMDb)", data.revenue);
+    })
+    .catch(error => { console.error(error); });
+
+    getOMDbData(content.title, content.year).then(data => {
+      console.log("data: " + JSON.stringify(data));
+      if (data.budget) appendAdditionalStatsElement("Budget (OMDb)", data.budget);
+      if (data.revenue) appendAdditionalStatsElement("Box Office (OMDb)", data.revenue);
+      if (data.rottenTomatoesRating) insertRottenTomatoesScore("rottentomatoes.com/", data.rottenTomatoesScore);
+      if (data.metascore) insertScore("metacritic.com/", data.metascore, "metacritic", "Metascore", "star");
     })
     .catch(error => { console.error(error); });
 
     const url = `https://www.google.com/search?q=${encodeURIComponent(`${content.title} ${content.year}`)}`;
     fetchData(url).then((data) => {
       console.log("data: " + JSON.stringify(data));
-      if (data.budget) appendAdditionalStatsElement("Budget", data.budget);
-      if (data.revenue) appendAdditionalStatsElement("Revenue", data.revenue);
+      if (data.budget) appendAdditionalStatsElement("Budget (Google)", data.budget);
+      if (data.revenue) appendAdditionalStatsElement("Box Office (Google)", data.revenue);
       insertRottenTomatoesLink(data.link);
       insertRottenTomatoesScore(data.link, data.score);
     }).catch(error => { console.error(error); });
@@ -31,38 +39,67 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 async function getTMDbData(movieName, releaseYear) {
+  try {var tmdbApiKey = await getStoredKeys(['tmdbKey']);}
+  catch (error) {console.error("Couldn't retrieve TMDb API Key" + error);}
   const searchResponse = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(movieName)}&year=${releaseYear}`);
   const searchData = await searchResponse.json();
+  console.log(searchData);
   if (searchData.results && searchData.results.length > 0) {
     const movieId = searchData.results[0].id;
     const movieResponse = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbApiKey}`);
     const movieData = await movieResponse.json();
-    const budget = movieData.budget;
-    const boxOffice = movieData.revenue;
+    const budget = formatNumberToCurrency(movieData.budget);
+    const revenue = formatNumberToCurrency(movieData.revenue);
     return {
-      budget: budget,
-      boxOffice: boxOffice
+      budget,
+      revenue
     };
   }
   throw new Error('Movie not found');
 }
 
 async function getOMDbData(movieName, releaseYear) {
-  const response = await fetch(`http://www.omdbapi.com/?t=${encodeURIComponent(movieName)}&y=${releaseYear}&apikey=${omdbApiKey}`);
+  try {var omdbApiKey = await getStoredKeys(['omdbKey']);}
+  catch (error) {console.error("Couldn't retrieve OMDb API Key" + error);}
+  const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(movieName)}&y=${releaseYear}&apikey=${omdbApiKey}`);
   const data = await response.json();
+  console.log(data);
   if (data.Response === "True") {
-    // Extract the desired fields
-    const boxOffice = data.BoxOffice;
-    const budget = data.Budget; // OMDb does not always provide this field
+    const revenue = formatNumberToCurrency(data.BoxOffice);
+    const budget = formatNumberToCurrency(data.Budget); // OMDb does not always provide this field
     const rottenTomatoesRating = data.Ratings.find(rating => rating.Source === 'Rotten Tomatoes');
+    const metascore = data.Metascore;
     return {
-      boxOffice: boxOffice,
-      budget: budget,
-      rottenTomatoesScore: rottenTomatoesRating ? rottenTomatoesRating.Value : null
+      revenue,
+      budget,
+      rottenTomatoesScore: rottenTomatoesRating ? rottenTomatoesRating.Value : null,
+      metascore
     };
   } else {
     throw new Error('Movie not found');
   }
+}
+
+function getStoredKeys(keys) {
+  return new Promise((resolve, reject) => {
+    if (Array.isArray(keys) && keys.length === 1) {
+      chrome.storage.local.get(keys[0], result => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(result[keys[0]]);
+        }
+      });
+    } else {
+      chrome.storage.local.get(keys, result => {
+        if (chrome.runtime.lastError) {
+          reject(chrome.runtime.lastError);
+        } else {
+          resolve(result);
+        }
+      });
+    }
+  });
 }
 
 async function fetchData(url) {
@@ -165,7 +202,8 @@ function insertRottenTomatoesLink(link){
 };
 
 function insertRottenTomatoesScore(link, score){
-  let RatingElement = document.createElement("li");
+  insertScore(link, score, "rottentomatoes", "Critics' Score", "tomato");
+  /* let RatingElement = document.createElement("li");
 
   RatingElement.setAttribute("class", "rottentomatoes-rating");
   let aElement=document.createElement("a");
@@ -190,5 +228,47 @@ function insertRottenTomatoesScore(link, score){
   VotesDivElement.textContent = "Critics' Score";
   NumberDivElement.appendChild(VotesDivElement);
 
-  document.querySelector("ul.ratings").insertBefore(RatingElement, document.querySelector("ul.ratings").firstChild);
+  document.querySelector("ul.ratings").insertBefore(RatingElement, document.querySelector("ul.ratings").firstChild); */
+};
+
+function insertScore(link, score, className, labelText, iconClass) {
+  let RatingElement = document.createElement("li");
+  RatingElement.setAttribute("class", className+"-rating");
+
+  let aElement = document.createElement("a");
+  aElement.setAttribute("href", link);
+  RatingElement.appendChild(aElement);
+
+  let IconDivElement = document.createElement("div");
+  IconDivElement.setAttribute("class", "icon fa fa-"+ iconClass);
+  aElement.appendChild(IconDivElement);
+
+  let NumberDivElement = document.createElement("div");
+  NumberDivElement.setAttribute("class", "number");
+  aElement.appendChild(NumberDivElement);
+
+  let RatingDivElement = document.createElement("div");
+  RatingDivElement.setAttribute("class", "rating");
+  RatingDivElement.textContent = score;
+  NumberDivElement.appendChild(RatingDivElement);
+
+  let VotesDivElement = document.createElement("div");
+  VotesDivElement.setAttribute("class", "votes");
+  VotesDivElement.textContent = labelText;
+  NumberDivElement.appendChild(VotesDivElement);
+
+  document.querySelector("ul.ratings").insertBefore(
+    RatingElement,
+    document.querySelector("ul.ratings").firstChild
+  );
+}
+
+function formatNumberToCurrency(number) {
+  const suffixes = ["", "K", "M", "B", "T"];
+  const suffixNum = Math.floor(("" + number).length / 3);
+  let shortValue = parseFloat((suffixNum !== 0 ? (number / Math.pow(1000, suffixNum)) : number).toPrecision(2));
+  if (shortValue % 1 !== 0) {
+    shortValue = shortValue.toFixed(1);
+  }
+  return "$" + shortValue + suffixes[suffixNum];
 };
