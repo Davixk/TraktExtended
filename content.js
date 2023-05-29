@@ -203,32 +203,6 @@ function insertRottenTomatoesLink(link){
 
 function insertRottenTomatoesScore(link, score){
   insertScore(link, score, "rottentomatoes", "Critics' Score", "tomato");
-  /* let RatingElement = document.createElement("li");
-
-  RatingElement.setAttribute("class", "rottentomatoes-rating");
-  let aElement=document.createElement("a");
-  aElement.setAttribute("href", link);
-  RatingElement.appendChild(aElement);
-
-  let IconDivElement=document.createElement("div");
-  IconDivElement.setAttribute("class", "icon fa fa-tomato");
-  aElement.appendChild(IconDivElement);
-
-  let NumberDivElement=document.createElement("div");
-  NumberDivElement.setAttribute("class", "number");
-  aElement.appendChild(NumberDivElement);
-
-  let RatingDivElement=document.createElement("div");
-  RatingDivElement.setAttribute("class", "rating");
-  RatingDivElement.textContent = score;
-  NumberDivElement.appendChild(RatingDivElement);
-
-  let VotesDivElement=document.createElement("div");
-  VotesDivElement.setAttribute("class", "votes");
-  VotesDivElement.textContent = "Critics' Score";
-  NumberDivElement.appendChild(VotesDivElement);
-
-  document.querySelector("ul.ratings").insertBefore(RatingElement, document.querySelector("ul.ratings").firstChild); */
 };
 
 function insertScore(link, score, className, labelText, iconClass) {
