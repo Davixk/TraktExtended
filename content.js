@@ -26,13 +26,15 @@ document.addEventListener("DOMContentLoaded", () => {
         insertRottenTomatoesScore(makeRottenTomatoesLink(content.title), data.rottenTomatoesScore);
       if (data.metascore && data.metascore.trim()!="N/A") 
         insertScore(makeMetacriticLink(content.title), data.metascore, "metacritic", "Metascore", "star");
+      if (data.awards && data.awards.trim()!="N/A") 
+        appendAdditionalStatsElement("Awards", data.awards, makeGoogleLink(content.title, content.year, "awards"));
     })
     .catch(error => { console.error(error); });
 
-    const url = `https://www.google.com/search?q=${encodeURIComponent(`${content.title} ${content.year}`)}`;
+    const url = makeGoogleLink(content.title, content.year);
     fetchData(url).then((data) => {
       console.log("data: " + JSON.stringify(data));
-      if (data.budget) appendAdditionalStatsElement("Budget (Google)", data.budget);
+      if (data.budget) appendAdditionalStatsElement("Budget (Google)", formatNumberToCurrency(data.budget));
       if (data.revenue) appendAdditionalStatsElement("Box Office (Google)", data.revenue);
       if (data.link && data.score) {
         insertRottenTomatoesLink(data.link);
@@ -78,11 +80,13 @@ async function getOMDbData(movieName, releaseYear) {
     const budget = formatNumberToCurrency(data.Budget); // OMDb does not always provide this field
     const rottenTomatoesRating = data.Ratings.find(rating => rating.Source === 'Rotten Tomatoes');
     const metascore = data.Metascore;
+    const awards = data.Awards;
     return {
       revenue,
       budget,
       rottenTomatoesScore: rottenTomatoesRating ? rottenTomatoesRating.Value : null,
-      metascore
+      metascore,
+      awards
     };
   } else {
     throw new Error('Movie not found');
@@ -109,6 +113,18 @@ function getStoredKeys(keys) {
       });
     }
   });
+}
+
+async function fetchRawWikiText(movieName, releaseYear) {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&redirects&format=json&titles=${encodeURIComponent(movieName + " (" + releaseYear + " film)")}&origin=*`;
+
+  const response = await fetch(url);
+  const json = await response.json();
+
+  const pageId = Object.keys(json.query.pages)[0];
+  const content = json.query.pages[pageId].revisions[0]['*'];
+
+  return content;
 }
 
 async function fetchData(url) {
@@ -184,7 +200,7 @@ function insertMoneyInfo(budget,revenue) {
   if (revenue) appendAdditionalStatsElement("Revenue", revenue);
 };
 
-function appendAdditionalStatsElement(labelText, text){
+function appendAdditionalStatsElement(labelText, text, url=undefined){
   let AdditionalStatsContainer = document.querySelector("ul.additional-stats");
   let cleanLabelText = labelText.replace(" (TMDb)", "").replace(" (OMDb)", "").replace(" (Google)", "");
   for(let i = 0; i < AdditionalStatsContainer.childNodes.length; i++) {
@@ -200,8 +216,17 @@ function appendAdditionalStatsElement(labelText, text){
   let stat = document.createElement("li");
   let statLabel = document.createElement("label");
   statLabel.textContent = labelText;
-  stat.appendChild(statLabel);
-  stat.appendChild(document.createTextNode(text));
+  if (url) {
+    let statLink = document.createElement("a");
+    statLink.setAttribute("href", url);
+    statLink.setAttribute("target", "_blank");
+    statLink.appendChild(statLabel);
+    statLink.appendChild(document.createTextNode(text));
+    stat.appendChild(statLink);
+  } else {
+    stat.appendChild(statLabel);
+    stat.appendChild(document.createTextNode(text));
+  }
   AdditionalStatsContainer.insertBefore(stat, AdditionalStatsContainer.lastChild);
 };
 
@@ -227,6 +252,7 @@ function insertScore(link, score, className, labelText, iconClass) {
 
   let aElement = document.createElement("a");
   aElement.setAttribute("href", link);
+  aElement.setAttribute("target", "_blank");
   RatingElement.appendChild(aElement);
 
   let IconDivElement = document.createElement("div");
@@ -263,14 +289,33 @@ function makeRottenTomatoesLink(movieName, releaseYear=undefined) {
   return `https://www.rottentomatoes.com/m/${encodeURIComponent(movieName)}`;
 }
 
+function makeGoogleLink(movieName, releaseYear=undefined, additionalText=undefined) {
+  let link = `https://www.google.com/search?q=${encodeURIComponent(movieName)}`;
+  if (releaseYear) {
+    link += ` ${encodeURIComponent(releaseYear)}`;
+  }
+  if (additionalText) {
+    link += ` ${encodeURIComponent(additionalText)}`;
+  }
+  return link;
+}
+
 function formatNumberToCurrency(number) {
   if (!number) return null;
   let num = number;
   if (typeof number === 'string') {
+    const billionRegex = /([\d\.]+)\s*billion/;
+    const millionRegex = /([\d\.]+)\s*million/;
     if (number.includes('B')) {
       num = parseFloat(number.replace('B', '')) * 1e9;
+    } else if (billionRegex.test(number)) {
+      let match = billionRegex.exec(number);
+      num = parseFloat(match[1]) * 1e9;
     } else if (number.includes('M')) {
       num = parseFloat(number.replace('M', '')) * 1e6;
+    } else if (millionRegex.test(number)) {
+      let match = millionRegex.exec(number);
+      num = parseFloat(match[1]) * 1e6;
     } else if (number.includes('K')) {
       num = parseFloat(number.replace('K', '')) * 1e3;
     } else if (number.includes(',')) {
