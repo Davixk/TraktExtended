@@ -12,18 +12,18 @@ document.addEventListener("DOMContentLoaded", () => {
         content.year = yearElement.textContent;
     } else {console.log("no year found");}
     getTMDbData(content.title, content.year).then(data => {
-      console.log("data: " + JSON.stringify(data));
+      console.log("TMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (TMDb)", data.budget);
       if (data.revenue) appendAdditionalStatsElement("Box Office (TMDb)", data.revenue);
     })
     .catch(error => { console.error(error); });
 
     getOMDbData(content.title, content.year).then(data => {
-      console.log("data: " + JSON.stringify(data));
+      console.log("OMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (OMDb)", data.budget);
-      if (data.revenue) appendAdditionalStatsElement("Box Office (OMDb)", data.revenue);
+      //if (data.revenue) appendAdditionalStatsElement("Box Office (OMDb)", data.revenue);
       if (data.rottenTomatoesRating) insertRottenTomatoesScore("rottentomatoes.com/", data.rottenTomatoesScore);
-      if (data.metascore) insertScore("metacritic.com/", data.metascore, "metacritic", "Metascore", "star");
+      if (data.metascore && data.metascore.trim()!="N/A") insertScore("metacritic.com/", data.metascore, "metacritic", "Metascore", "star");
     })
     .catch(error => { console.error(error); });
 
@@ -32,8 +32,10 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (Google)", data.budget);
       if (data.revenue) appendAdditionalStatsElement("Box Office (Google)", data.revenue);
-      insertRottenTomatoesLink(data.link);
-      insertRottenTomatoesScore(data.link, data.score);
+      if (data.link && data.score) {
+        insertRottenTomatoesLink(data.link);
+        if (data.score) insertRottenTomatoesScore(data.link, data.score);
+      }
     }).catch(error => { console.error(error); });
   }
 });
@@ -43,11 +45,11 @@ async function getTMDbData(movieName, releaseYear) {
   catch (error) {console.error("Couldn't retrieve TMDb API Key" + error);}
   const searchResponse = await fetch(`https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(movieName)}&year=${releaseYear}`);
   const searchData = await searchResponse.json();
-  console.log(searchData);
   if (searchData.results && searchData.results.length > 0) {
     const movieId = searchData.results[0].id;
     const movieResponse = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbApiKey}`);
     const movieData = await movieResponse.json();
+    console.log(movieData);
     const budget = formatNumberToCurrency(movieData.budget);
     const revenue = formatNumberToCurrency(movieData.revenue);
     return {
@@ -130,7 +132,6 @@ async function fetchData(url) {
         }
 
         try {
-          //let budgetDivSpans = findDivSpans(doc, 'budget');
           const budget = extractMoneyInfo(findDivSpans(doc, 'budget'));
           info.budget = budget;
         } catch (error) {
@@ -138,7 +139,6 @@ async function fetchData(url) {
         }
         
         try {
-          //let revenueDivSpans = findDivSpans(doc, 'box_offic');
           const revenue = extractMoneyInfo(findDivSpans(doc, 'box_offic'));
           info.revenue = revenue;
         } catch (error) {
@@ -238,11 +238,33 @@ function insertScore(link, score, className, labelText, iconClass) {
 }
 
 function formatNumberToCurrency(number) {
-  const suffixes = ["", "K", "M", "B", "T"];
-  const suffixNum = Math.floor(("" + number).length / 3);
-  let shortValue = parseFloat((suffixNum !== 0 ? (number / Math.pow(1000, suffixNum)) : number).toPrecision(2));
-  if (shortValue % 1 !== 0) {
-    shortValue = shortValue.toFixed(1);
+  if (!number) return null;
+  let num = number;
+  if (typeof number === 'string') {
+    if (number.includes('B')) {
+      num = parseFloat(number.replace('B', '')) * 1e9;
+    } else if (number.includes('M')) {
+      num = parseFloat(number.replace('M', '')) * 1e6;
+    } else if (number.includes('K')) {
+      num = parseFloat(number.replace('K', '')) * 1e3;
+    } else if (number.includes(',')) {
+      num = parseFloat(number.replace(/[\$,]/g, ''));
+    } else {
+      num = parseFloat(number.replace('$', ''));
+    }
   }
-  return "$" + shortValue + suffixes[suffixNum];
+  let format = '';
+  if (num >= 1e9) {
+    let val = (num / 1e9).toFixed(1);
+    format = '$' + (val.endsWith('.0') ? val.slice(0, -2) : val) + ' billion';
+  } else if (num >= 1e6) {
+    let val = (num / 1e6).toFixed(1);
+    format = '$' + (val.endsWith('.0') ? val.slice(0, -2) : val) + ' million';
+  } else if (num >= 1e3) {
+    let val = (num / 1e3).toFixed(1);
+    format = '$' + (val.endsWith('.0') ? val.slice(0, -2) : val) + ' thousand';
+  } else {
+    format = '$' + num;
+  }
+  return format;
 };
