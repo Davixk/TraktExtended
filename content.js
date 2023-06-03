@@ -11,6 +11,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if (yearElement) {
         content.year = yearElement.textContent;
     } else {console.log("no year found");}
+
+    let rottenTomatoesLink = null;
+
     getTMDbData(content.title, content.year).then(data => {
       console.log("TMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (TMDb)", data.budget);
@@ -22,23 +25,28 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log("OMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (OMDb)", data.budget);
       //if (data.revenue) appendAdditionalStatsElement("Box Office (OMDb)", data.revenue);
-      if (data.rottenTomatoesRating) 
-        insertRottenTomatoesScore(makeRottenTomatoesLink(content.title), data.rottenTomatoesScore);
-      if (data.metascore && data.metascore.trim()!="N/A") 
+      if (data.rottenTomatoesScore){
+        console.log("inserting RT score (OMDb). Cached link: "+rottenTomatoesLink);
+        insertRottenTomatoesScore(rottenTomatoesLink, data.rottenTomatoesScore);
+      }
+      if (data.metascore && data.metascore.trim()!="N/A")
         insertScore(makeMetacriticLink(content.title), data.metascore, "metacritic", "Metascore", "star");
       if (data.awards && data.awards.trim()!="N/A") 
         appendAdditionalStatsElement("Awards", data.awards, makeGoogleLink(content.title, content.year, "awards"));
     })
     .catch(error => { console.error(error); });
-
-    const url = makeGoogleLink(content.title, content.year);
-    fetchData(url).then((data) => {
+    
+    fetchData(makeGoogleLink(content.title, content.year)).then((data) => {
       console.log("data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (Google)", formatNumberToCurrency(data.budget));
       if (data.revenue) appendAdditionalStatsElement("Box Office (Google)", data.revenue);
-      if (data.link && data.score) {
+      if (data.link) {
         insertRottenTomatoesLink(data.link);
-        if (data.score) insertRottenTomatoesScore(data.link, data.score);
+        rottenTomatoesLink = data.link;
+        console.log("RT link saved: "+rottenTomatoesLink);
+      }
+      if (rottenTomatoesLink || data.score) {
+        insertRottenTomatoesScore(rottenTomatoesLink, data.score);
       }
     }).catch(error => { console.error(error); });
   }
@@ -151,7 +159,13 @@ async function fetchData(url) {
           info.score = desiredLink.firstChild.textContent;
           info.link = desiredLink.href;
         } else {
-          console.log("No Rotten Tomatoes data found");
+          console.log("No Rotten Tomatoes recap found");
+          doc.querySelectorAll('a[href]').forEach(element => {
+           if(element.href.includes("rottentomatoes.com/m/")){
+            console.log("Rotten Tomatoes link found");
+            info.link = element.href;
+           }
+          })
         }
 
         try {
@@ -242,16 +256,36 @@ function insertRottenTomatoesLink(link){
     .insertBefore(LinkButtonElement, document.querySelector("ul.external>li").firstChild);
 };
 
-function insertRottenTomatoesScore(link, score){
+function insertRottenTomatoesScore(link=null, score=null){
   insertScore(link, score, "rottentomatoes", "Critics' Score", "tomato");
 };
 
 function insertScore(link, score, className, labelText, iconClass) {
+  let element = document.querySelector("ul.ratings li."+className+"-rating");
+  if (element) {
+    elementScore = element.querySelector("div.rating").textContent;
+    elementLink = element.querySelector("a").getAttribute("href");
+    console.log("This rating already exists. Element score:"+elementScore+" Element link:"+elementLink);
+
+    if (!elementLink || elementLink.trim() == "") {
+      element.querySelector("a").setAttribute("href", link);
+      if(elementScore) return;
+    }
+
+    if(!elementScore || elementScore.trim() == "") {
+      element.querySelector("div.rating").textContent = score;
+      return;
+    }
+
+    if(elementScore && elementLink) return;
+  }
+
+
   let RatingElement = document.createElement("li");
   RatingElement.setAttribute("class", className+"-rating");
 
   let aElement = document.createElement("a");
-  aElement.setAttribute("href", link);
+  if (link) { aElement.setAttribute("href", link); }
   aElement.setAttribute("target", "_blank");
   RatingElement.appendChild(aElement);
 
