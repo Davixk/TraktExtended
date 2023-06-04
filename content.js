@@ -173,13 +173,16 @@ async function fetchData(url) {
           info.score = desiredLink.firstChild.textContent;
           info.link = desiredLink.href;
         } else {
-          console.log("No Rotten Tomatoes recap found");
+          console.log("No Rotten Tomatoes recap found, looking for Rotten Tomatoes link");
           doc.querySelectorAll('a[href]').forEach(element => {
            if(element.href.includes("rottentomatoes.com/m/")){
             console.log("Rotten Tomatoes link found");
             info.link = element.href;
            }
           })
+          if (!info.link) {
+            console.log("No Rotten Tomatoes link found");
+          }
         }
 
         try {
