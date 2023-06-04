@@ -18,6 +18,11 @@
       "matches": ["https://trakt.tv/movies/*", "https://trakt.tv/shows/*"],
       "js": ["content.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://trakt.tv/dashboard"],
+      "js": ["dashboard.js"],
+      "run_at": "document_start"
     }
   ]
 }
