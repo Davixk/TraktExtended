@@ -4,6 +4,10 @@ async function main() {
     await contentLoadedPromise();
     console.log("content loaded");
 
+    addTotalHours();
+}
+
+async function addTotalHours() {
     await waitForElementsLoad(".humanized-minutes");
     document.querySelectorAll(".humanized-minutes").forEach((element) => {
         const minutes = element.attributes["data-full-minutes"].value;
