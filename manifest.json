@@ -20,8 +20,8 @@
       "run_at": "document_start"
     },
     {
-      "matches": ["https://trakt.tv/dashboard"],
-      "js": ["contentscripts/dashboard.js"],
+      "matches": ["https://trakt.tv/*"],
+      "js": ["contentscripts/universal.js"],
       "run_at": "document_start"
     }
   ]

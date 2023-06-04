@@ -1,26 +1,26 @@
-console.log("dashboard.js loaded");
+console.log("universal.js loaded");
+
+observeForElementsLoad(".humanized-minutes", addTotalHours);
 
 async function main() {
     await contentLoadedPromise();
     console.log("content loaded");
-
-    addTotalHours();
 }
 
-async function addTotalHours() {
-    await waitForElementsLoad(".humanized-minutes");
-    document.querySelectorAll(".humanized-minutes").forEach((element) => {
+function addTotalHours(element) {
+    if (!element.attributes["data-converted"]) {
         const minutes = element.attributes["data-full-minutes"].value;
-        element.appendChild(document.createTextNode(" or "+convertToHours(minutes)));
-    });
-}
+        element.innerText = convertToHours(minutes);
+        element.attributes["data-converted"] = "true";
+    }
+};
 
 function convertToHours(minutes) {
     minutes = parseInt(minutes.replace(/m|,/g, ""), 10);
     const hours = Math.floor(minutes / 60);
     const remainingMinutes = minutes % 60;
     return hours + "h " + remainingMinutes + "m";
-}
+};
 
 function contentLoadedPromise() {
     return new Promise((resolve, reject) => {
@@ -34,19 +34,19 @@ function contentLoadedPromise() {
     });
 };
 
-function waitForElementsLoad(selector) {
-    return new Promise(resolve => {
-        const observer = new MutationObserver((mutationsList, observer) => {
-            if(document.querySelector(selector)){
-                console.log(selector+" element loaded");
-                console.log(mutationsList);
-                resolve();
-                observer.disconnect();
+function observeForElementsLoad(selector, callback) {
+    const observer = new MutationObserver((mutationsList, observer) => {
+        for(let mutation of mutationsList) {
+            if(mutation.type === 'childList') {
+                const elements = mutation.target.querySelectorAll(selector);
+                elements.forEach(element => {
+                    callback(element);
+                });
             }
-        });
-
-        observer.observe(document, { childList: true, subtree: true });
+        }
     });
-}
+
+    observer.observe(document, { childList: true, subtree: true });
+};
 
 main().catch(error => console.error(error));
