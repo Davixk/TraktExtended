@@ -14,15 +14,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let rottenTomatoesLink = null;
 
-    getTMDbData(content.title, content.year).then(data => {
-      console.log("TMDb data: " + JSON.stringify(data));
+    getTMDbData(content.title, content.year, pageType).then(data => {
+      console.log("Scraped TMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (TMDb)", data.budget);
       if (data.revenue) appendAdditionalStatsElement("Box Office (TMDb)", data.revenue);
+      if (data.status) appendAdditionalStatsElement("Status", data.status);
     })
     .catch(error => { console.error(error); });
 
     getOMDbData(content.title, content.year).then(data => {
-      console.log("OMDb data: " + JSON.stringify(data));
+      console.log("Scraped OMDb data: " + JSON.stringify(data));
       if (data.budget) appendAdditionalStatsElement("Budget (OMDb)", data.budget);
       //if (data.revenue) appendAdditionalStatsElement("Box Office (OMDb)", data.revenue);
       if (data.rottenTomatoesScore){
@@ -52,36 +53,47 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-async function getTMDbData(movieName, releaseYear) {
+async function getTMDbData(contentName, releaseYear, contentType, language="en-US") {
   try {var tmdbApiKey = await getStoredKeys(['tmdbKey']);}
   catch (error) {
     throw new Error("Couldn't retrieve TMDb API Key" + error);
   }
-  const searchUrl=`https://api.themoviedb.org/3/search/movie?api_key=${tmdbApiKey}&query=${encodeURIComponent(movieName)}&year=${releaseYear}`;
+  let selectedType = "movie";
+  if(contentType === "video.movie") {
+    selectedType = "movie";
+  } else if (contentType === "video.tv_show") {
+    selectedType = "tv";
+  }
+  const searchUrl=`https://api.themoviedb.org/3/search/${selectedType}?api_key=${tmdbApiKey}&query=${encodeURIComponent(contentName)}&year=${releaseYear}`;
+  console.log("TMDb searchUrl: "+searchUrl);
   const searchResponse = await fetch(searchUrl);
   const searchData = await searchResponse.json();
   if (searchData.results && searchData.results.length > 0) {
-    const movieId = searchData.results[0].id;
-    const movieResponse = await fetch(`https://api.themoviedb.org/3/movie/${movieId}?api_key=${tmdbApiKey}`);
-    const movieData = await movieResponse.json();
-    console.log(movieData);
-    const budget = formatNumberToCurrency(movieData.budget);
-    const revenue = formatNumberToCurrency(movieData.revenue);
+    const contentId = searchData.results[0].id;
+    const contentResponse = await fetch(`https://api.themoviedb.org/3/${selectedType}/${contentId}?api_key=${tmdbApiKey}`);
+    const contentData = await contentResponse.json();
+    console.log("Raw TMDb data: ");
+    console.log(contentData);
+    const budget = formatNumberToCurrency(contentData.budget);
+    const revenue = formatNumberToCurrency(contentData.revenue);
+    const status = contentData.status;
     return {
       budget,
-      revenue
+      revenue,
+      status,
     };
   }
-  throw new Error('Movie not found');
+  throw new Error('Movie not found: ' + contentName);
 }
 
-async function getOMDbData(movieName, releaseYear) {
+async function getOMDbData(contentName, releaseYear) {
   try {var omdbApiKey = await getStoredKeys(['omdbKey']);}
   catch (error) {
     throw new Error("Couldn't retrieve OMDb API Key" + error);
   }
-  const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(movieName)}&y=${releaseYear}&apikey=${omdbApiKey}`);
+  const response = await fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(contentName)}&y=${releaseYear}&apikey=${omdbApiKey}`);
   const data = await response.json();
+  console.log("Raw OMDb data: ");
   console.log(data);
   if (data.Response === "True") {
     const revenue = formatNumberToCurrency(data.BoxOffice);
@@ -89,15 +101,17 @@ async function getOMDbData(movieName, releaseYear) {
     const rottenTomatoesRating = data.Ratings.find(rating => rating.Source === 'Rotten Tomatoes');
     const metascore = data.Metascore;
     const awards = data.Awards;
+    const status = data.status;
     return {
       revenue,
       budget,
       rottenTomatoesScore: rottenTomatoesRating ? rottenTomatoesRating.Value : null,
       metascore,
-      awards
+      awards,
+      status,
     };
   } else {
-    throw new Error('Movie not found');
+    throw new Error('Movie not found: ' + contentName);
   }
 }
 
@@ -123,8 +137,8 @@ function getStoredKeys(keys) {
   });
 }
 
-async function fetchRawWikiText(movieName, releaseYear) {
-  const url = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&redirects&format=json&titles=${encodeURIComponent(movieName + " (" + releaseYear + " film)")}&origin=*`;
+async function fetchRawWikiText(contentName, releaseYear) {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&prop=revisions&rvprop=content&redirects&format=json&titles=${encodeURIComponent(contentName + " (" + releaseYear + " film)")}&origin=*`;
 
   const response = await fetch(url);
   const json = await response.json();
@@ -313,18 +327,17 @@ function insertScore(link, score, className, labelText, iconClass) {
   );
 }
 
-function makeMetacriticLink(movieName, releaseYear=undefined) {
-  // Replace spaces with dashes, remove punctuation, and convert to lowercase
-  movieName = movieName.trim().replace(/ /g, '-').replace(/[^\w-]/g, '').toLowerCase();
-  return `https://www.metacritic.com/movie/${encodeURIComponent(movieName)}`;
+function makeMetacriticLink(contentName, releaseYear=undefined) {
+  contentName = contentName.trim().replace(/ /g, '-').replace(/[^\w-]/g, '').toLowerCase();
+  return `https://www.metacritic.com/movie/${encodeURIComponent(contentName)}`;
 }
 
-function makeRottenTomatoesLink(movieName, releaseYear=undefined) {
-  return `https://www.rottentomatoes.com/m/${encodeURIComponent(movieName)}`;
+function makeRottenTomatoesLink(contentName, releaseYear=undefined) {
+  return `https://www.rottentomatoes.com/m/${encodeURIComponent(contentName)}`;
 }
 
-function makeGoogleLink(movieName, releaseYear=undefined, additionalText=undefined) {
-  let link = `https://www.google.com/search?q=${encodeURIComponent(movieName)}`;
+function makeGoogleLink(contentName, releaseYear=undefined, additionalText=undefined) {
+  let link = `https://www.google.com/search?q=${encodeURIComponent(contentName)}`;
   if (releaseYear) {
     link += ` ${encodeURIComponent(releaseYear)}`;
   }

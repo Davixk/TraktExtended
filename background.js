@@ -1,4 +1,9 @@
 chrome.runtime.onInstalled.addListener(() => {
+  chrome.contextMenus.create({
+    id: "searchOnTrakt",
+    title: "Search on Trakt",
+    contexts: ["selection"]
+  });
   chrome.storage.local.get(['tmdbKey', 'omdbKey'], result => {
     if (!result.tmdbKey || !result.omdbKey) {
       chrome.tabs.create({url: "res/options.html"});
@@ -24,3 +29,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     return true;
   }
 });
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "searchOnTrakt") {
+    chrome.tabs.create({url: createTraktSearchUrl(info.selectionText)});
+  }
+});
+
+function createTraktSearchUrl(query) {
+  return "https://trakt.tv/search?query=" + encodeURIComponent(query);
+};
