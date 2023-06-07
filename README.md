@@ -13,7 +13,7 @@ Trakt Extended is a powerful and easy-to-use Chrome extension designed to enhanc
 
 ## Installation
 
-1. Download <link href="https://github.com/Davixk/TraktExtended/releases/latest">the latest release</link>
+1. [Download the latest release](https://github.com/Davixk/TraktExtended/releases/latest)
 2. Install the extension
 3. Profit
 
