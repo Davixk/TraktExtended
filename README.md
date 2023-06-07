@@ -13,10 +13,9 @@ Trakt Extended is a powerful and easy-to-use Chrome extension designed to enhanc
 
 ## Installation
 
-1. Clone or download the repository
-2. Open Chrome and navigate to `chrome://extensions`
-3. Enable "Developer mode" in the top-right corner
-4. Click on "Load unpacked" and select the directory of the cloned/downloaded repository
+1. Download <link href="https://github.com/Davixk/TraktExtended/releases/latest">the latest release</link>
+2. Install the extension
+3. Profit
 
 Upon successful installation, Chrome will open the `res/options.html` page where you can input your API keys for TMDb and OMDb.
 
