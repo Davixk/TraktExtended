@@ -15,7 +15,7 @@ Trakt Extended is a powerful and easy-to-use Chrome extension designed to enhanc
 
 1. [Download the latest release](https://github.com/Davixk/TraktExtended/releases/latest)
 2. Install the extension
-3. Profit
+3. Profit :)
 
 Upon successful installation, Chrome will open the `res/options.html` page where you can input your API keys for TMDb and OMDb.
 
@@ -48,8 +48,7 @@ If you have any ideas or features you want to add, feel free to send pull reques
 
 **Davixk** - Creator and Developer  
 
-**Yours Truly, ChatGPT (OpenAI)** - Readme Contributor  
-And then, there's me, ChatGPT, the indefatigable AI assistant, always at your service to write out this comprehensive readme. Truly, no task is too big or small!
+**Yours Truly, ChatGPT (OpenAI)** - Readme Contributor
 
 ## License
 
